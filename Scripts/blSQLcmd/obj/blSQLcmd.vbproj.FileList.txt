@@ -1,0 +1,7 @@
+bin\Release\blSQLcmd.exe
+bin\Release\blSQLcmd.xml
+obj\Release\ResolveAssemblyReference.cache
+obj\Release\blSQLcmd.Resources.resources
+obj\Release\blSQLcmd.vbproj.GenerateResource.Cache
+obj\Release\blSQLcmd.exe
+obj\Release\blSQLcmd.xml

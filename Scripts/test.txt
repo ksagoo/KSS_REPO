@@ -1,0 +1,17 @@
+ Volume in drive C is WINDOWS
+ Volume Serial Number is F4ED-400E
+
+ Directory of C:\GIT_WORK\KPROJECTS\Scripts
+
+27/04/2015  12:25    <DIR>          .
+27/04/2015  12:25    <DIR>          ..
+27/04/2015  12:23    <DIR>          blSQLcmd
+29/07/2009  15:33             1,394 blSQLcmd.sln
+27/04/2015  12:23    <DIR>          blSQLutil
+29/07/2009  15:34               302 blSQLutil.vbproj.FileList.txt
+03/07/2009  12:09             6,371 ExecuteSQL.vbs
+27/04/2015  12:23    <DIR>          Oracle
+27/04/2015  12:25                 0 test.txt
+27/04/2015  12:23    <DIR>          UTF8
+               4 File(s)          8,067 bytes
+               6 Dir(s)   7,246,577,664 bytes free

@@ -1,0 +1,9 @@
+bin\Release\blSQLutil.exe
+bin\Release\blSQLutil.pdb
+bin\Release\blSQLutil.xml
+obj\Release\ResolveAssemblyReference.cache
+obj\Release\blSQLutil.Resources.resources
+obj\Release\blSQLutil.vbproj.GenerateResource.Cache
+obj\Release\blSQLutil.exe
+obj\Release\blSQLutil.xml
+obj\Release\blSQLutil.pdb
