@@ -1,3 +1,7 @@
+
+#!/usr/bin/env python3
+"""Read-only Akamai PAPI hostname -> property group lookup."""
+
 import argparse
 import sys
 from urllib.parse import urljoin
@@ -5,105 +9,201 @@ from urllib.parse import urljoin
 from akamai_cert_manager_proxy import setup_session
 
 
-def get_json(session, url, **kwargs):
+def api_get(session, base_url, path, params=None):
+    url = urljoin(base_url.rstrip("/") + "/", path.lstrip("/"))
+
     response = session.get(
         url,
         headers={
             "Accept": "application/json",
             "PAPI-Use-Prefixes": "true",
         },
-        timeout=30,
-        **kwargs,
+        params=params,
+        timeout=45,
     )
+
     response.raise_for_status()
     return response.json()
 
 
-def find_group(groups, target_id):
-    for group in groups:
-        if str(group.get("groupId")) == target_id:
-            return group
-
-        found = find_group(
-            group.get("subGroups") or [],
-            target_id,
-        )
-        if found:
-            return found
-
-    return None
+def walk_groups(items):
+    for item in items:
+        yield item
+        yield from walk_groups(item.get("children") or [])
 
 
-def lookup(session, base_url, fqdn):
-    fqdn = fqdn.strip().rstrip(".").lower()
+def lookup(session, base_url, fqdn, network):
+    target = fqdn.strip().rstrip(".").casefold()
 
-    url = urljoin(
-        base_url.rstrip("/") + "/",
-        "papi/v1/hostnames",
-    )
+    if not target or any(c.isspace() for c in target):
+        raise ValueError("Provide a valid non-empty FQDN")
 
-    matches = []
     params = {
-        "hostname": fqdn,
+        "hostname": target,
+        "network": network,
         "limit": 100,
-        "network": "PRODUCTION",
     }
 
-    while url:
-        data = get_json(session, url, params=params)
-        collection = data.get("hostnames") or {}
+    path = "papi/v1/hostnames"
+    seen_pages = set()
+    matches = []
 
-        for item in collection.get("items", []):
+    # Search hostnames and follow pagination.
+    while path:
+        if path in seen_pages:
+            raise RuntimeError("Repeated pagination link from PAPI")
+
+        seen_pages.add(path)
+
+        data = api_get(
+            session,
+            base_url,
+            path,
+            params=params,
+        )
+
+        hostnames = data.get("hostnames")
+
+        if (
+            not isinstance(hostnames, dict)
+            or not isinstance(hostnames.get("items"), list)
+        ):
+            raise RuntimeError(
+                "Unexpected PAPI hostnames response structure"
+            )
+
+        for item in hostnames["items"]:
             hostname = (
-                item.get("cnameFrom") or ""
-            ).rstrip(".").lower()
+                item.get("cnameFrom")
+                or item.get("hostname")
+                or ""
+            ).rstrip(".").casefold()
 
-            if hostname == fqdn:
+            if hostname == target:
                 matches.append(item)
 
-        next_link = collection.get("nextLink")
-        url = (
-            urljoin(base_url, next_link)
-            if next_link
-            else None
-        )
+        path = hostnames.get("nextLink")
         params = None
 
     if not matches:
-        print(f"No active production property found: {fqdn}")
-        return 1
+        print(
+            f"No {network} hostname match found for "
+            f"{target} among accessible properties."
+        )
+        return 2
 
-    groups = get_json(
+    # Retrieve PAPI groups instead of IAM groups.
+    group_data = api_get(
         session,
-        urljoin(
-            base_url.rstrip("/") + "/",
-            "identity-management/v3/user-admin/groups",
-        ),
+        base_url,
+        "papi/v1/groups",
     )
 
-    if not isinstance(groups, list):
-        raise RuntimeError("Unexpected IAM groups response")
+    groups = group_data.get("groups")
+
+    if (
+        not isinstance(groups, dict)
+        or not isinstance(groups.get("items"), list)
+    ):
+        raise RuntimeError(
+            "Unexpected PAPI groups response structure"
+        )
+
+    by_id = {
+        str(group.get("groupId")): group
+        for group in walk_groups(groups["items"])
+    }
+
+    unresolved = False
+    seen = set()
 
     for item in matches:
-        group_id = str(item.get("groupId") or "")
-        group = find_group(groups, group_id)
+        key = (
+            str(item.get("propertyId")),
+            str(item.get("groupId")),
+        )
 
-        print(f"\nFQDN         : {fqdn}")
-        print(f"Property     : {item.get('propertyName', 'Unknown')}")
-        print(f"Property ID  : {item.get('propertyId', 'Unknown')}")
-        print(f"Access Group : {group.get('groupName') if group else 'Unresolved'}")
-        print(f"Group ID     : {group_id or 'Unknown'}")
-        print(f"Contract ID  : {item.get('contractId', 'Unknown')}")
-        print("Network      : PRODUCTION")
+        if key in seen:
+            continue
+
+        seen.add(key)
+
+        group_id = str(item.get("groupId") or "")
+        group = by_id.get(group_id)
+
+        group_name = (
+            group.get("groupName")
+            if group
+            else None
+        )
+
+        if not group_id or not group_name:
+            unresolved = True
+
+        print(f"\nFQDN         : {target}")
+        print(
+            f"Property     : "
+            f"{item.get('propertyName') or 'Not provided'}"
+        )
+        print(
+            f"Property ID  : "
+            f"{item.get('propertyId') or 'Not provided'}"
+        )
+        print(
+            f"Access Group : "
+            f"{group_name or 'UNRESOLVED'}"
+        )
+        print(
+            f"Group ID     : "
+            f"{group_id or 'Not provided'}"
+        )
+        print(
+            f"Contract ID  : "
+            f"{item.get('contractId') or 'Not provided'}"
+        )
+        print(f"Network      : {network}")
+
+    if unresolved:
+        print(
+            "\nWARNING: At least one group could not be "
+            "resolved. Verify PAPI hostname fields "
+            "and API permissions.",
+            file=sys.stderr,
+        )
+        return 3
 
     return 0
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--section", default="DEV")
-    parser.add_argument("--fqdn", required=True)
-    parser.add_argument("--edgerc-file", default=None)
+    parser = argparse.ArgumentParser(
+        description=(
+            "Read-only Akamai hostname to "
+            "PAPI Access Group lookup"
+        )
+    )
+
+    parser.add_argument(
+        "--section",
+        default="DEV",
+        help="EdgeGrid .edgerc section",
+    )
+
+    parser.add_argument(
+        "--edgerc-file",
+        default="~/.edgerc",
+    )
+
+    parser.add_argument(
+        "--fqdn",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--network",
+        choices=["PRODUCTION", "STAGING"],
+        default="PRODUCTION",
+    )
 
     args = parser.parse_args()
 
@@ -113,7 +213,17 @@ def main():
         False,
     )
 
-    return lookup(session, base_url, args.fqdn)
+    if session is None or not base_url:
+        raise RuntimeError(
+            "EdgeGrid session initialization failed"
+        )
+
+    return lookup(
+        session,
+        base_url,
+        args.fqdn,
+        args.network,
+    )
 
 
 if __name__ == "__main__":
@@ -122,13 +232,3 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
-
-
-
-python akamai_access_group_lookup.py \
-  --section KSS-GLOBAL \
-  --fqdn www.accountopening.hsbc.com.my
-
-
-
-
