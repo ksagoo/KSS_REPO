@@ -1,57 +1,134 @@
-def get_enrollment_id_by_fqdn(self, fqdn):
-    """Resolve unique CPS enrollment by CN or SAN."""
+import argparse
+import sys
+from urllib.parse import urljoin
 
-    target = (fqdn or "").strip().casefold()
+from akamai_cert_manager_proxy import setup_session
 
-    if not target:
-        raise ValueError("FQDN cannot be empty")
 
-    enrollments = self.get_enrollments()
+def get_json(session, url, **kwargs):
+    response = session.get(
+        url,
+        headers={
+            "Accept": "application/json",
+            "PAPI-Use-Prefixes": "true",
+        },
+        timeout=30,
+        **kwargs,
+    )
+    response.raise_for_status()
+    return response.json()
 
-    if not enrollments:
-        raise RuntimeError(
-            "No CPS enrollments returned; lookup cannot continue"
+
+def find_group(groups, target_id):
+    for group in groups:
+        if str(group.get("groupId")) == target_id:
+            return group
+
+        found = find_group(
+            group.get("subGroups") or [],
+            target_id,
         )
+        if found:
+            return found
 
-    matches = set()
+    return None
 
-    for item in enrollments:
-        csr = item.get("csr") or {}
 
-        if not isinstance(csr, dict):
-            raise RuntimeError("Invalid CSR in enrollment list")
+def lookup(session, base_url, fqdn):
+    fqdn = fqdn.strip().rstrip(".").lower()
 
-        cn = (csr.get("cn") or "").strip().casefold()
+    url = urljoin(
+        base_url.rstrip("/") + "/",
+        "papi/v1/hostnames",
+    )
 
-        sans = {
-            san.strip().casefold()
-            for san in (csr.get("sans") or [])
-            if isinstance(san, str)
-        }
+    matches = []
+    params = {
+        "hostname": fqdn,
+        "limit": 100,
+        "network": "PRODUCTION",
+    }
 
-        if target == cn or target in sans:
-            enrollment_id = item.get("id")
+    while url:
+        data = get_json(session, url, params=params)
+        collection = data.get("hostnames") or {}
 
-            if enrollment_id is None:
-                location = item.get("location", "")
-                enrollment_id = location.rstrip("/").split("/")[-1]
+        for item in collection.get("items", []):
+            hostname = (
+                item.get("cnameFrom") or ""
+            ).rstrip(".").lower()
 
-            if not str(enrollment_id).isdigit():
-                raise RuntimeError(
-                    "Matching enrollment has no valid ID"
-                )
+            if hostname == fqdn:
+                matches.append(item)
 
-            matches.add(int(enrollment_id))
-
-    if len(matches) == 1:
-        enrollment_id = matches.pop()
-        log("INFO", f"Resolved {target} to {enrollment_id}")
-        return enrollment_id
-
-    if len(matches) > 1:
-        raise ValueError(
-            f"Multiple CPS enrollments match {target}: "
-            f"{sorted(matches)}"
+        next_link = collection.get("nextLink")
+        url = (
+            urljoin(base_url, next_link)
+            if next_link
+            else None
         )
+        params = None
 
-    raise ValueError(f"No CPS enrollment matches {target}")
+    if not matches:
+        print(f"No active production property found: {fqdn}")
+        return 1
+
+    groups = get_json(
+        session,
+        urljoin(
+            base_url.rstrip("/") + "/",
+            "identity-management/v3/user-admin/groups",
+        ),
+    )
+
+    if not isinstance(groups, list):
+        raise RuntimeError("Unexpected IAM groups response")
+
+    for item in matches:
+        group_id = str(item.get("groupId") or "")
+        group = find_group(groups, group_id)
+
+        print(f"\nFQDN         : {fqdn}")
+        print(f"Property     : {item.get('propertyName', 'Unknown')}")
+        print(f"Property ID  : {item.get('propertyId', 'Unknown')}")
+        print(f"Access Group : {group.get('groupName') if group else 'Unresolved'}")
+        print(f"Group ID     : {group_id or 'Unknown'}")
+        print(f"Contract ID  : {item.get('contractId', 'Unknown')}")
+        print("Network      : PRODUCTION")
+
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--section", default="DEV")
+    parser.add_argument("--fqdn", required=True)
+    parser.add_argument("--edgerc-file", default=None)
+
+    args = parser.parse_args()
+
+    session, base_url = setup_session(
+        args.edgerc_file,
+        args.section,
+        False,
+    )
+
+    return lookup(session, base_url, args.fqdn)
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+
+
+python akamai_access_group_lookup.py \
+  --section KSS-GLOBAL \
+  --fqdn www.accountopening.hsbc.com.my
+
+
+
+
