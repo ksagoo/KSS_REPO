@@ -1,1 +1,57 @@
-python -c "import inspect; from akamai_cert_manager_proxy import AkamaiCertManager; print(inspect.signature(AkamaiCertManager.get_enrollment))"
+def get_enrollment_id_by_fqdn(self, fqdn):
+    """Resolve unique CPS enrollment by CN or SAN."""
+
+    target = (fqdn or "").strip().casefold()
+
+    if not target:
+        raise ValueError("FQDN cannot be empty")
+
+    enrollments = self.get_enrollments()
+
+    if not enrollments:
+        raise RuntimeError(
+            "No CPS enrollments returned; lookup cannot continue"
+        )
+
+    matches = set()
+
+    for item in enrollments:
+        csr = item.get("csr") or {}
+
+        if not isinstance(csr, dict):
+            raise RuntimeError("Invalid CSR in enrollment list")
+
+        cn = (csr.get("cn") or "").strip().casefold()
+
+        sans = {
+            san.strip().casefold()
+            for san in (csr.get("sans") or [])
+            if isinstance(san, str)
+        }
+
+        if target == cn or target in sans:
+            enrollment_id = item.get("id")
+
+            if enrollment_id is None:
+                location = item.get("location", "")
+                enrollment_id = location.rstrip("/").split("/")[-1]
+
+            if not str(enrollment_id).isdigit():
+                raise RuntimeError(
+                    "Matching enrollment has no valid ID"
+                )
+
+            matches.add(int(enrollment_id))
+
+    if len(matches) == 1:
+        enrollment_id = matches.pop()
+        log("INFO", f"Resolved {target} to {enrollment_id}")
+        return enrollment_id
+
+    if len(matches) > 1:
+        raise ValueError(
+            f"Multiple CPS enrollments match {target}: "
+            f"{sorted(matches)}"
+        )
+
+    raise ValueError(f"No CPS enrollment matches {target}")
