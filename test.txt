@@ -1,0 +1,16 @@
+Hi Matt,
+
+I've reviewed Adm Naidu's CV against the DevOps Lead requirements.
+
+He has a solid background in Azure/AWS cloud infrastructure, Terraform, Jenkins, CI/CD, cloud security and WAF technologies, with relevant experience supporting enterprise environments.
+
+The main gap is that his CV doesn't clearly demonstrate hands-on Python development or REST API automation, both of which are important for this role. His experience also appears more infrastructure and cloud security focused than software-led DevOps automation.
+
+However, given that the Karat assessment includes Python testing, I suggest we progress him to Karat and use the assessment to validate his coding capability rather than exclude him based on the CV alone.
+
+If successful, we can explore his Python/API integration experience, Jenkins pipeline design and technical leadership in more detail during the subsequent interview.
+
+Recommendation: Proceed to Karat, with Python/API automation flagged for validation.
+
+Thanks,
+Kuldeep
