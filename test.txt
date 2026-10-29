@@ -1,0 +1,7 @@
+target_ctask = next(
+    (
+        task for task in ctask_list
+        if str(task.get("short_description") or "").strip().startswith("4.")
+    ),
+    None
+)
