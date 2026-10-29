@@ -1,16 +1,21 @@
-Hi Matt,
+if args.fqdn:
+    log("INFO", f"Resolving Enrollment ID for FQDN: {args.fqdn}")
 
-I've reviewed Adm Naidu's CV against the DevOps Lead requirements.
+    try:
+        resolved_id = manager.get_enrollment_id_by_fqdn(args.fqdn)
 
-He has a solid background in Azure/AWS cloud infrastructure, Terraform, Jenkins, CI/CD, cloud security and WAF technologies, with relevant experience supporting enterprise environments.
+        if not resolved_id:
+            raise RuntimeError(
+                f"Unable to resolve FQDN: {args.fqdn}"
+            )
 
-The main gap is that his CV doesn't clearly demonstrate hands-on Python development or REST API automation, both of which are important for this role. His experience also appears more infrastructure and cloud security focused than software-led DevOps automation.
+        if args.enrollment_id and args.enrollment_id != resolved_id:
+            raise ValueError(
+                "Provided Enrollment ID does not match FQDN"
+            )
 
-However, given that the Karat assessment includes Python testing, I suggest we progress him to Karat and use the assessment to validate his coding capability rather than exclude him based on the CV alone.
+        args.enrollment_id = resolved_id
 
-If successful, we can explore his Python/API integration experience, Jenkins pipeline design and technical leadership in more detail during the subsequent interview.
-
-Recommendation: Proceed to Karat, with Python/API automation flagged for validation.
-
-Thanks,
-Kuldeep
+    except (ValueError, RuntimeError) as exc:
+        log("ERROR", f"FQDN lookup failed: {exc}")
+        raise SystemExit(1)
