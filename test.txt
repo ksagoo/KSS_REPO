@@ -1,52 +1,8 @@
-print("\n========== GROUP MEMBERSHIP DEBUG ==========")
-print(f"[DEBUG] Environment: {env}")
-print(f"[DEBUG] Assignment group: {global_assignment_group}")
-print(f"[DEBUG] HTTP status: {response.status_code}")
-print(f"[DEBUG] API result keys: {list(json_data.get('result', {}).keys())}")
-print(f"[DEBUG] Members returned: {len(group_members)}")
-
-user_list = [
-    member.get("user")
-    for member in group_members
-]
-
-print(f"[DEBUG] Member field types: {[type(x).__name__ for x in user_list[:3]]}")
-print(f"[DEBUG] Requester matched: {user in user_list}")
-print("============================================\n")
-
-
-
-parser.add_argument(
-    "--debug-membership",
-    action="store_true",
-    help="Test ServiceNow assignment group membership only"
-)
-
-parser.add_argument(
-    "--assignment-group",
-    help="ServiceNow assignment group for membership testing"
-)
-
-
-if args.debug_membership:
-    if not args.assignment_group:
-        parser.error("--assignment-group is required with --debug-membership")
-
-    global global_assignment_group
-    global_assignment_group = args.assignment_group
-
-    snow_user = (
-        args.user
-        if args.user.lower().endswith("@hsbc.com")
-        else args.user + "@hsbc.com"
-    )
-
-    result = check_user_in_assignment_group(
-        snow_user,
-        args.svc_name,
-        args.svc_pwd,
-        args.env
-    )
-
-    print(f"[DEBUG] Final membership result: {result}")
-    return
+"/c/Program Files/Python3.11.8/python.exe" change-and-ctask-validation.py \
+  --change_number CHG8784546 \
+  --svc_name "$SNOW_USER" \
+  --svc_pwd "$SNOW_PASS" \
+  --user 44034122 \
+  --env PROD \
+  --debug-membership \
+  --assignment-group HTSA-CMB-GBBP-AP
