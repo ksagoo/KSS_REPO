@@ -1,3 +1,29 @@
-curl -v --noproxy nexus302.systems.uk.hsbc \
-  --cacert "$REQUESTS_CA_BUNDLE" \
-  "https://nexus302.systems.uk.hsbc:8081/nexus/repository/pypi-group/simple/"
+read -r -p "Nexus username: " NEXUS_USER
+read -r -s -p "Nexus token: " NEXUS_TOKEN
+echo
+
+python -m venv .venv
+source .venv/Scripts/activate
+
+export PIP_INDEX_URL="https://${NEXUS_USER}:${NEXUS_TOKEN}@nexus302.systems.uk.hsbc:8081/nexus/repository/pypi-group/simple/"
+export PIP_CERT="$REQUESTS_CA_BUNDLE"
+export NO_PROXY="${NO_PROXY:+$NO_PROXY,}nexus302.systems.uk.hsbc"
+export no_proxy="$NO_PROXY"
+
+python -m pip install urllib3 requests
+
+python -c "import urllib3, requests; print('Dependencies OK')"
+
+unset NEXUS_USER NEXUS_TOKEN PIP_INDEX_URL PIP_CERT
+
+
+read -r -p "Nexus username: " NEXUS_USER
+read -r -s -p "Nexus token: " NEXUS_TOKEN
+echo
+
+export NEXUS_USER NEXUS_TOKEN
+
+[[ -n "$NEXUS_USER" ]] && echo "Username set"
+[[ -n "$NEXUS_TOKEN" ]] && echo "Token set"
+
+unset NEXUS_USER NEXUS_TOKEN
