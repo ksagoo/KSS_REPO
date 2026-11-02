@@ -1,8 +1,4 @@
-"/c/Program Files/Python3.11.8/python.exe" change-and-ctask-validation.py \
-  --change_number CHG8784546 \
-  --svc_name "$SNOW_USER" \
-  --svc_pwd "$SNOW_PASS" \
-  --user 44034122 \
-  --env PROD \
-  --debug-membership \
-  --assignment-group HTSA-CMB-GBBP-AP
+echo "$REQUESTS_CA_BUNDLE"
+test -f "$REQUESTS_CA_BUNDLE" && echo "Certificate exists" || echo "Certificate missing"
+
+python -m pip install --cert "$REQUESTS_CA_BUNDLE" urllib3 requests
