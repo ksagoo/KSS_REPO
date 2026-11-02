@@ -1,4 +1,6 @@
-echo "$REQUESTS_CA_BUNDLE"
-test -f "$REQUESTS_CA_BUNDLE" && echo "Certificate exists" || echo "Certificate missing"
-
-python -m pip install --cert "$REQUESTS_CA_BUNDLE" urllib3 requests
+grep -RniE \
+  'pip install|pip.conf|pip.ini|pypi|nexus|index-url' \
+  --include='Jenkinsfile*' \
+  --include='*.groovy' \
+  --include='requirements*.txt' \
+  . | head -60
