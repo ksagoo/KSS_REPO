@@ -1,29 +1,28 @@
-read -r -p "Nexus username: " NEXUS_USER
-read -r -s -p "Nexus token: " NEXUS_TOKEN
-echo
+print("\n========== MEMBERSHIP MATCH DEBUG ==========")
 
-python -m venv .venv
-source .venv/Scripts/activate
+print(f"[DEBUG] Assignment group: {global_assignment_group}")
+print(f"[DEBUG] Requester supplied: {user!r}")
+print(f"[DEBUG] Requester type: {type(user).__name__}")
 
-export PIP_INDEX_URL="https://${NEXUS_USER}:${NEXUS_TOKEN}@nexus302.systems.uk.hsbc:8081/nexus/repository/pypi-group/simple/"
-export PIP_CERT="$REQUESTS_CA_BUNDLE"
-export NO_PROXY="${NO_PROXY:+$NO_PROXY,}nexus302.systems.uk.hsbc"
-export no_proxy="$NO_PROXY"
+print(f"[DEBUG] Members returned by API: {len(group_members)}")
+print(f"[DEBUG] Unique members returned: {len(set(str(x) for x in user_list))}")
 
-python -m pip install urllib3 requests
+print(f"[DEBUG] Response summary: {json_data.get('result', {}).get('responseSummary')}")
 
-python -c "import urllib3, requests; print('Dependencies OK')"
+print(f"[DEBUG] Exact match: {user in user_list}")
 
-unset NEXUS_USER NEXUS_TOKEN PIP_INDEX_URL PIP_CERT
+normalised_user = str(user).strip().lower()
+normalised_members = {
+    str(member).strip().lower()
+    for member in user_list
+    if member is not None
+}
 
+print(f"[DEBUG] Normalised requester: {normalised_user!r}")
+print(f"[DEBUG] Normalised match: {normalised_user in normalised_members}")
 
-read -r -p "Nexus username: " NEXUS_USER
-read -r -s -p "Nexus token: " NEXUS_TOKEN
-echo
+print("============================================\n")
 
-export NEXUS_USER NEXUS_TOKEN
-
-[[ -n "$NEXUS_USER" ]] && echo "Username set"
-[[ -n "$NEXUS_TOKEN" ]] && echo "Token set"
-
-unset NEXUS_USER NEXUS_TOKEN
+url = f"{api_url}-reference/api/v1/hsbcc/itsm/reference?offset=0&limit=100&entity=rgmember&group={global_assignment_group}"
+url = f"{api_url}-reference/api/v1/hsbcc/itsm/reference?entity=rgmember&group={global_assignment_group}"
+url = f"{api_url}-reference/api/v1/hsbcc/itsm/reference?offset=0&limit=1000&entity=rgmember&group={global_assignment_group}"
