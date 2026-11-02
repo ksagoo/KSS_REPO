@@ -1,5 +1,3 @@
-curl --noproxy nexus302.systems.uk.hsbc \
-  --connect-timeout 10 \
-  -o /dev/null \
-  -w 'HTTP status: %{http_code}\n' \
-  http://nexus302.systems.uk.hsbc:8081/nexus/repository/pypi-group/simple/
+curl -v --noproxy nexus302.systems.uk.hsbc \
+  --cacert "$REQUESTS_CA_BUNDLE" \
+  "https://nexus302.systems.uk.hsbc:8081/nexus/repository/pypi-group/simple/"
