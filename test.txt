@@ -1,6 +1,5 @@
-grep -RniE \
-  'pip install|pip.conf|pip.ini|pypi|nexus|index-url' \
-  --include='Jenkinsfile*' \
-  --include='*.groovy' \
-  --include='requirements*.txt' \
-  . | head -60
+curl --noproxy nexus302.systems.uk.hsbc \
+  --connect-timeout 10 \
+  -o /dev/null \
+  -w 'HTTP status: %{http_code}\n' \
+  http://nexus302.systems.uk.hsbc:8081/nexus/repository/pypi-group/simple/
