@@ -1,43 +1,9 @@
+print(f"[DEBUG] Response keys: {list(data.keys())}")
 
----- user_list = [member.get("user") for member in group_members]
+if isinstance(hostnames, dict):
+    items = hostnames.get("items", [])
+    print(f"[DEBUG] Items on page: {len(items)}")
+    print(f"[DEBUG] Next link: {hostnames.get('nextLink')}")
 
-print(f"[DEBUG] Requester representation: {user!r}")
-print(f"[DEBUG] First 5 member representations: {[repr(x) for x in user_list[:5]]}")
-print(f"[DEBUG] Exact match: {user in user_list}")
-print(f"[DEBUG] Case-insensitive match: {str(user).strip().lower() in {str(x).strip().lower() for x in user_list if x is not None}}")
-print(f"[DEBUG] Response summary: {json_data.get('result', {}).get('responseSummary')}")
-
-
---- user_list = [member.get("user") for member in group_members]
-
-print("\n========== MEMBERSHIP MATCH DEBUG ==========")
-
-print(f"[DEBUG] Assignment group: {global_assignment_group}")
-print(f"[DEBUG] Requester supplied: {user!r}")
-print(f"[DEBUG] Requester type: {type(user).__name__}")
-
-print(f"[DEBUG] Members returned by API: {len(group_members)}")
-print(f"[DEBUG] Unique members returned: {len(set(str(x) for x in user_list))}")
-
-print(f"[DEBUG] Response summary: {json_data.get('result', {}).get('responseSummary')}")
-
-print(f"[DEBUG] Exact match: {user in user_list}")
-
-normalised_user = str(user).strip().lower()
-normalised_members = {
-    str(member).strip().lower()
-    for member in user_list
-    if member is not None
-}
-
-print(f"[DEBUG] Normalised requester: {normalised_user!r}")
-print(f"[DEBUG] Normalised match: {normalised_user in normalised_members}")
-
-print("============================================\n")
-
-
-url = f"{api_url}-reference/api/v1/hsbcc/itsm/reference?offset=0&limit=100&entity=rgmember&group={global_assignment_group}"
-url = f"{api_url}-reference/api/v1/hsbcc/itsm/reference?entity=rgmember&group={global_assignment_group}"
-url = f"{api_url}-reference/api/v1/hsbcc/itsm/reference?offset=0&limit=1000&entity=rgmember&group={global_assignment_group}"
-
-
+    for item in items[:3]:
+        print(f"[DEBUG] Sample hostname: {item}")
