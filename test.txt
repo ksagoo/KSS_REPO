@@ -1,9 +1,1 @@
-print(f"[DEBUG] Response keys: {list(data.keys())}")
 
-if isinstance(hostnames, dict):
-    items = hostnames.get("items", [])
-    print(f"[DEBUG] Items on page: {len(items)}")
-    print(f"[DEBUG] Next link: {hostnames.get('nextLink')}")
-
-    for item in items[:3]:
-        print(f"[DEBUG] Sample hostname: {item}")
