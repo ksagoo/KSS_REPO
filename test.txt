@@ -37,7 +37,14 @@ print(f"Pending Changes Found: {len(pending)}")
 change_id = None
 
 for pc in pending:
-    location = pc.get("location", "")
+    if isinstance(pc, dict):
+        location = pc.get("location", "")
+    elif isinstance(pc, str):
+        location = pc
+    else:
+        print(f"Unexpected pending change type: {type(pc).__name__}")
+        continue
+
     print(f"Pending Change Location: {location}")
 
     if "/changes/" in location:
