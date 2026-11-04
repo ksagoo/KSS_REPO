@@ -1,9 +1,1 @@
-target_ctask = next(
-    (
-        task for task in ctask_list
-        if str(task.get("short_description") or "")
-        .strip()
-        .startswith("04.")
-    ),
-    None
-)
+python -c 'tasks=[{"short_description":"4. Certificate Deployment (CYBER-WASP)"},{"short_description":"3. Pre Deployment Validation"}]; match=next((task for task in tasks if str(task.get("short_description") or "").strip().startswith("4.")),None); print(match)'
