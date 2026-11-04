@@ -1,4 +1,0 @@
-python akamai_cert_status_check.py \
-  --section GLOBAL \
-  --enrollment-id YOUR_ENROLLMENT_ID \
-  --output cps_status.json
