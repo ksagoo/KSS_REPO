@@ -1,1 +1,227 @@
+#!/usr/bin/env python3
 
+"""
+Akamai CPS Certificate Status Checker
+
+Read-only diagnostic for certificate deployments.
+
+Uses setup_session() from:
+    akamai_cert_manager_proxy.py
+
+No renewals, approvals, scheduling or deployments.
+"""
+
+import argparse
+import json
+import sys
+from datetime import datetime, timezone
+
+from akamai_cert_manager_proxy import setup_session
+
+
+def fetch(session, base_url, path, accept):
+    """Execute a read-only CPS GET request."""
+
+    url = (
+        base_url.rstrip("/")
+        + "/"
+        + path.lstrip("/")
+    )
+
+    try:
+        response = session.get(
+            url,
+            headers={"Accept": accept},
+            timeout=(10, 45)
+        )
+
+        result = {
+            "http_status": response.status_code,
+            "url_path": path
+        }
+
+        try:
+            result["body"] = response.json()
+        except ValueError:
+            result["error"] = response.text[:1500]
+
+        if not response.ok:
+            result["error"] = (
+                result.get("error")
+                or "API request failed"
+            )
+
+        return result
+
+    except Exception as exc:
+        return {
+            "url_path": path,
+            "error": f"{type(exc).__name__}: {exc}"
+        }
+
+
+def certificate_summary(deployment):
+    """Extract certificate metadata without PEM contents."""
+
+    if not isinstance(deployment, dict):
+        deployment = {}
+
+    cert = deployment.get("primaryCertificate", {})
+
+    if not isinstance(cert, dict):
+        cert = {}
+
+    return {
+        "expiry": cert.get("expiry"),
+        "key_algorithm": cert.get("keyAlgorithm"),
+        "certificate_present": bool(
+            cert.get("certificate")
+        ),
+        "deployment_status": deployment.get("status"),
+        "deployment_time": deployment.get("deploymentTime")
+    }
+
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Read-only Akamai CPS certificate "
+            "deployment status checker"
+        )
+    )
+
+    parser.add_argument(
+        "--enrollment-id",
+        required=True,
+        help="Akamai CPS enrollment ID"
+    )
+
+    parser.add_argument(
+        "--section",
+        default="DEV",
+        help="EdgeGrid section"
+    )
+
+    parser.add_argument(
+        "--edgerc-file",
+        default="~/.edgerc"
+    )
+
+    args = parser.parse_args()
+
+    enrollment_id = args.enrollment_id.strip()
+
+    if not enrollment_id.isdigit():
+        parser.error(
+            "--enrollment-id must be numeric"
+        )
+
+    session, base_url = setup_session(
+        args.edgerc_file,
+        args.section,
+        False
+    )
+
+    if session is None or not base_url:
+        print(
+            "ERROR: EdgeGrid session failed",
+            file=sys.stderr
+        )
+        return 2
+
+    prefix = f"cps/v2/enrollments/{enrollment_id}"
+
+    report = {
+        "checked_at_utc": datetime.now(
+            timezone.utc
+        ).isoformat(),
+        "enrollment_id": enrollment_id,
+        "section": args.section,
+        "read_only": True
+    }
+
+    # 1. Retrieve enrollment information
+    report["enrollment"] = fetch(
+        session,
+        base_url,
+        prefix,
+        "application/vnd.akamai.cps.enrollment.v12+json"
+    )
+
+    # 2. Retrieve staging and production deployments
+    report["deployments"] = fetch(
+        session,
+        base_url,
+        prefix + "/deployments",
+        "application/vnd.akamai.cps.deployments.v7+json"
+    )
+
+    # 3. Extract deployment information
+    deployments = report["deployments"].get(
+        "body", {}
+    )
+
+    if not isinstance(deployments, dict):
+        deployments = {}
+
+    production = deployments.get("production", {})
+    staging = deployments.get("staging", {})
+
+    # 4. Build concise summary
+    report["summary"] = {
+        "enrollment_id": enrollment_id,
+        "production": certificate_summary(production),
+        "staging": certificate_summary(staging)
+    }
+
+    # 5. Print directly to terminal
+    print("\n" + "=" * 60)
+    print("AKAMAI CPS CERTIFICATE STATUS")
+    print("=" * 60)
+
+    print(
+        json.dumps(
+            {
+                "checked_at_utc": report["checked_at_utc"],
+                "summary": report["summary"],
+                "http_status": {
+                    "enrollment": report[
+                        "enrollment"
+                    ].get("http_status"),
+                    "deployments": report[
+                        "deployments"
+                    ].get("http_status")
+                }
+            },
+            indent=2,
+            default=str
+        )
+    )
+
+    print("=" * 60)
+
+    # 6. Check for API failures
+    if any(
+        report[key].get("http_status") != 200
+        for key in ("enrollment", "deployments")
+    ):
+        print(
+            "WARNING: One or more CPS API requests failed.",
+            file=sys.stderr
+        )
+
+        for key in ("enrollment", "deployments"):
+            if report[key].get("http_status") != 200:
+                print(
+                    f"{key}: {report[key].get('error', 'Unknown error')}",
+                    file=sys.stderr
+                )
+
+        return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
