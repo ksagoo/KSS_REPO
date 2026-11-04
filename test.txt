@@ -1,1 +1,24 @@
-loc = pc if isinstance(pc, str) else pc.get("location", "")
+python akamai_cert_manager_proxy-original.py --section DEV --report-only --schedule --enrollment-id 333981 --dry-run
+
+
+change_id = None
+
+for pc in pending:
+    loc = pc if isinstance(pc, str) else pc.get("location", "")
+
+    if "/changes/" in loc:
+        candidate = loc.split("/changes/")[-1].strip()
+        candidate = re.split(r"[/?]", candidate)[0]
+
+        if candidate.isdigit():
+            change_id = candidate
+            break
+
+print(f"Parsed changeId: {change_id}")
+
+assert change_id == "9230881", (
+    f"Expected change 9230881, got {change_id}"
+)
+
+print("SUCCESS: Production Change ID parsing logic passed.")
+print("READ ONLY: No scheduling or deployment performed.")
