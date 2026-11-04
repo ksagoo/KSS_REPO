@@ -1,445 +1,62 @@
+test_pending_change.py
+
 #!/usr/bin/env python3
 
-"""
-Akamai CPS Certificate Status Checker
-=====================================
-
-READ ONLY - No renewal, approval or deployment scheduling.
-
-Uses existing EdgeGrid authentication from:
-    akamai_cert_manager_proxy.py
-
-Checks:
-    1. Enrollment details
-    2. Current staging and production deployments
-    3. Individual CPS change status
-
-Example:
-    python akamai_cert_status_check.py \
-        --section GLOBAL \
-        --enrollment-id 269228 \
-        --change-id 9230881
-"""
-
 import argparse
-import json
-import sys
-from datetime import datetime, timezone
-
-import requests
-
 from akamai_cert_manager_proxy import setup_session
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--section", default="GLOBAL")
+parser.add_argument("--enrollment-id", type=int, required=True)
+args = parser.parse_args()
 
-# ---------------------------------------------------------
-# API HEADERS
-# ---------------------------------------------------------
+session, base_url = setup_session(
+    edgerc_file="~/.edgerc",
+    section=args.section
+)
 
-ENROLLMENT_HEADERS = {
-    "Accept": "application/vnd.akamai.cps.enrollment.v1+json"
-}
+endpoint = f"cps/v2/enrollments/{args.enrollment_id}"
 
-DEPLOYMENT_HEADERS = {
-    "Accept": "application/vnd.akamai.cps.deployments.v1+json"
-}
+response = session.get(
+    f"{base_url.rstrip('/')}/{endpoint}",
+    headers={
+        "Accept": "application/vnd.akamai.cps.enrollment.v2+json"
+    },
+    timeout=(10, 30)
+)
 
-CHANGE_HEADERS = {
-    "Accept": "application/vnd.akamai.cps.change.v2+json"
-}
+print(f"Enrollment HTTP Status: {response.status_code}")
+response.raise_for_status()
 
+enrollment_json = response.json()
 
-# ---------------------------------------------------------
-# HELPER: API GET
-# ---------------------------------------------------------
+pending = enrollment_json.get("pendingChanges", []) or []
 
-def api_get(session, base_url, endpoint, headers):
+print(f"Pending Changes Found: {len(pending)}")
 
-    url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
+change_id = None
 
-    try:
-        response = session.get(
-            url,
-            headers=headers,
-            timeout=(10, 30)
-        )
+for pc in pending:
+    location = pc.get("location", "")
+    print(f"Pending Change Location: {location}")
 
-        try:
-            data = response.json()
-        except ValueError:
-            data = {
-                "raw_response": response.text[:2000]
-            }
+    if "/changes/" in location:
+        candidate = location.split("/changes/")[-1].strip()
 
-        return {
-            "http_status": response.status_code,
-            "data": data
-        }
+        if candidate.isdigit():
+            change_id = int(candidate)
+            break
 
-    except requests.RequestException as exc:
-        return {
-            "http_status": None,
-            "error": str(exc),
-            "data": {}
-        }
+print(f"Discovered Change ID: {change_id}")
 
+if change_id == 9230881:
+    print("SUCCESS: Existing pending change discovered correctly.")
+else:
+    print("WARNING: Existing change 9230881 was not discovered.")
 
-# ---------------------------------------------------------
-# HELPER: PRINT JSON
-# ---------------------------------------------------------
+print("READ ONLY: No deployment scheduling performed.")
 
-def print_json(data):
-    print(json.dumps(data, indent=2, default=str))
 
+python test_pending_change.py --section GLOBAL --enrollment-id 269228
 
-def print_section(title):
-    print("\n" + "=" * 65)
-    print(title)
-    print("=" * 65)
-
-
-# ---------------------------------------------------------
-# 1. GET ENROLLMENT
-# ---------------------------------------------------------
-
-def check_enrollment(session, base_url, enrollment_id):
-
-    print_section("1. ENROLLMENT DETAILS")
-
-    endpoint = f"/cps/v2/enrollments/{enrollment_id}"
-
-    result = api_get(
-        session,
-        base_url,
-        endpoint,
-        ENROLLMENT_HEADERS
-    )
-
-    print(f"Enrollment ID : {enrollment_id}")
-    print(f"HTTP Status   : {result['http_status']}")
-
-    if result["http_status"] == 200:
-
-        data = result["data"]
-
-        print("\nEnrollment Summary:")
-
-        print(f"ID            : {data.get('id')}")
-        print(f"Validation    : {data.get('validationType')}")
-        print(f"Certificate   : {data.get('certificateType')}")
-
-        csr = data.get("csr") or {}
-
-        print(f"Common Name   : {csr.get('cn')}")
-        print(f"SANs          : {csr.get('sans')}")
-
-    else:
-        print("\nEnrollment lookup failed:")
-        print_json(result.get("data"))
-
-    return result
-
-
-# ---------------------------------------------------------
-# 2. GET DEPLOYMENTS
-# ---------------------------------------------------------
-
-def check_deployments(session, base_url, enrollment_id):
-
-    print_section("2. CURRENT CERTIFICATE DEPLOYMENTS")
-
-    endpoint = (
-        f"/cps/v2/enrollments/{enrollment_id}/deployments"
-    )
-
-    result = api_get(
-        session,
-        base_url,
-        endpoint,
-        DEPLOYMENT_HEADERS
-    )
-
-    print(f"HTTP Status : {result['http_status']}")
-
-    if result["http_status"] != 200:
-
-        print("\nDeployment lookup failed:")
-        print_json(result.get("data"))
-
-        return result
-
-    data = result["data"]
-
-    for network in ("production", "staging"):
-
-        print(f"\n{network.upper()}")
-
-        deployment = data.get(network) or {}
-
-        if not deployment:
-            print("No deployment information returned.")
-            continue
-
-        print(f"Expiry          : {deployment.get('expiry')}")
-        print(
-            f"Signature       : "
-            f"{deployment.get('signatureAlgorithm')}"
-        )
-        print(
-            f"Certificate     : "
-            f"{'Present' if deployment.get('certificate') else 'Absent'}"
-        )
-
-        for field in (
-            "status",
-            "deploymentStatus",
-            "deploymentDate",
-            "deploymentTime"
-        ):
-            if field in deployment:
-                print(f"{field}: {deployment[field]}")
-
-    return result
-
-
-# ---------------------------------------------------------
-# 3. GET INDIVIDUAL CHANGE
-# ---------------------------------------------------------
-
-def check_change_status(
-    session,
-    base_url,
-    enrollment_id,
-    change_id
-):
-
-    print_section("3. CURRENT CPS CHANGE STATUS")
-
-    endpoint = (
-        f"/cps/v2/enrollments/{enrollment_id}"
-        f"/changes/{change_id}"
-    )
-
-    result = api_get(
-        session,
-        base_url,
-        endpoint,
-        CHANGE_HEADERS
-    )
-
-    print(f"Enrollment ID : {enrollment_id}")
-    print(f"Change ID     : {change_id}")
-    print(f"HTTP Status   : {result['http_status']}")
-
-    if result["http_status"] == 200:
-
-        data = result["data"]
-
-        print("\nCURRENT CHANGE DETAILS")
-
-        print(f"Change ID      : {data.get('changeId', data.get('id'))}")
-        print(f"Status         : {data.get('status')}")
-        print(f"Type           : {data.get('type')}")
-
-        status_info = data.get("statusInfo") or {}
-
-        print(
-            f"Current State  : "
-            f"{status_info.get('state', data.get('status'))}"
-        )
-
-        print(
-            f"Current Phase  : "
-            f"{status_info.get('phase', data.get('phase'))}"
-        )
-
-        print("\nFull Change Response:")
-        print_json(data)
-
-    elif result["http_status"] == 404:
-
-        print("\nCHANGE LOOKUP RETURNED HTTP 404")
-        print(
-            "The change was not found through this API endpoint."
-        )
-        print(
-            "This does NOT prove there is no pending renewal."
-        )
-
-        print("\nAPI Error Response:")
-        print_json(result.get("data"))
-
-    else:
-
-        print("\nChange lookup failed.")
-
-        print_json(
-            result.get("data") or result.get("error")
-        )
-
-    return result
-
-
-# ---------------------------------------------------------
-# 4. FINAL SUMMARY
-# ---------------------------------------------------------
-
-def print_summary(
-    enrollment_id,
-    change_id,
-    enrollment_result,
-    deployment_result,
-    change_result
-):
-
-    print_section("AKAMAI CPS STATUS SUMMARY")
-
-    print(f"Checked At UTC : {datetime.now(timezone.utc).isoformat()}")
-    print(f"Enrollment ID  : {enrollment_id}")
-    print(f"Change ID      : {change_id or 'Not supplied'}")
-
-    print("\nAPI RESULTS")
-
-    print(
-        f"Enrollment     : "
-        f"HTTP {enrollment_result['http_status']}"
-    )
-
-    print(
-        f"Deployments    : "
-        f"HTTP {deployment_result['http_status']}"
-    )
-
-    if change_result:
-
-        print(
-            f"Change         : "
-            f"HTTP {change_result['http_status']}"
-        )
-
-        if change_result["http_status"] == 200:
-
-            data = change_result["data"]
-            status_info = data.get("statusInfo") or {}
-
-            state = status_info.get(
-                "state",
-                data.get("status")
-            )
-
-            phase = status_info.get(
-                "phase",
-                data.get("phase")
-            )
-
-            print(f"\nActual Change State : {state or 'Not provided'}")
-            print(f"Actual Change Phase : {phase or 'Not provided'}")
-
-        else:
-
-            print(
-                "\nActual change status could not be "
-                "confirmed through the API."
-            )
-
-    print("\nNo changes made to Akamai CPS.")
-
-
-# ---------------------------------------------------------
-# MAIN
-# ---------------------------------------------------------
-
-def main():
-
-    parser = argparse.ArgumentParser(
-        description="Read-only Akamai CPS certificate status checker"
-    )
-
-    parser.add_argument(
-        "--section",
-        default="DEV",
-        help="EdgeRc section, e.g. GLOBAL"
-    )
-
-    parser.add_argument(
-        "--edgerc-file",
-        default="~/.edgerc",
-        help="Path to EdgeRc file"
-    )
-
-    parser.add_argument(
-        "--enrollment-id",
-        required=True,
-        type=int,
-        help="Akamai CPS Enrollment ID"
-    )
-
-    parser.add_argument(
-        "--change-id",
-        type=int,
-        help="Akamai CPS Change ID"
-    )
-
-    args = parser.parse_args()
-
-    print_section("AKAMAI CPS CERTIFICATE STATUS (READ ONLY)")
-
-    print(f"Environment   : {args.section}")
-    print(f"Enrollment ID : {args.enrollment_id}")
-    print(f"Change ID     : {args.change_id or 'Not supplied'}")
-
-    # Reuse existing working EdgeGrid authentication.
-    session, base_url = setup_session(
-        edgerc_file=args.edgerc_file,
-        section=args.section
-    )
-
-    enrollment_result = check_enrollment(
-        session,
-        base_url,
-        args.enrollment_id
-    )
-
-    deployment_result = check_deployments(
-        session,
-        base_url,
-        args.enrollment_id
-    )
-
-    change_result = None
-
-    if args.change_id:
-
-        change_result = check_change_status(
-            session,
-            base_url,
-            args.enrollment_id,
-            args.change_id
-        )
-
-    print_summary(
-        args.enrollment_id,
-        args.change_id,
-        enrollment_result,
-        deployment_result,
-        change_result
-    )
-
-    if (
-        enrollment_result["http_status"] != 200
-        or deployment_result["http_status"] != 200
-        or (
-            change_result is not None
-            and change_result["http_status"] != 200
-        )
-    ):
-        return 1
-
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
-
-
-python akamai_cert_status_check.py --section GLOBAL --enrollment-id 269228 --change-id 9230881
 
