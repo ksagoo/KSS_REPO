@@ -1,68 +1,9 @@
-parser.add_argument(
-    "--debug-ctask-description",
-    action="store_true",
-    help="Debug CTASK short descriptions and exit"
+target_ctask = next(
+    (
+        task for task in ctask_list
+        if str(task.get("short_description") or "")
+        .strip()
+        .startswith("04.")
+    ),
+    None
 )
-
-def ctask_validation(
-    number, svc_name, svc_pwd, env,
-    details_only=False,
-    debug_description=False
-):
-
-After the existing ctask_list assignment at line 123, insert:
-if debug_description:
-    print("\n========== CTASK DESCRIPTION DEBUG ==========")
-    print(f"Change Number: {number}")
-    print(f"Total CTASKs returned: {len(ctask_list)}")
-
-    matches = []
-
-    for task in ctask_list:
-        description = str(
-            task.get("short_description") or ""
-        ).strip()
-
-        is_match = description.startswith("04.")
-
-        print(f"\nCTASK: {task.get('number', 'UNKNOWN')}")
-        print(f"Short Description: {description!r}")
-        print(f"Match CTASK 04: {is_match}")
-
-        if is_match:
-            matches.append(task)
-
-    print("\n========== RESULT ==========")
-    print(f"Matching CTASKs: {len(matches)}")
-
-    for task in matches:
-        print(f"Matched CTASK: {task.get('number')}")
-        print(f"Description: {task.get('short_description')}")
-
-    print("===================================")
-
-    return matches
-
-3. Add a dedicated execution path in main()
-After args = parser.parse_args() and before the existing if args.debug_membership: block, add:
-
-if args.debug_ctask_description:
-    ctask_validation(
-        args.change_number,
-        args.svc_name,
-        args.svc_pwd,
-        args.env,
-        debug_description=True
-    )
-    return
-
-This ensures the debug flag bypasses the normal change validation, group membership checks and deployment logic.
-4. Run the test
-From your Git Bash terminal, using the existing ServiceNow credentials:
-python change-and-ctask-validation.py \
-  --change_number CHG8870508 \
-  --svc_name "$SNOW_SVC_NAME" \
-  --svc_pwd "$SNOW_SVC_PWD" \
-  --user 44034122 \
-  --env PROD \
-  --debug-ctask-description
