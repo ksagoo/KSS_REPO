@@ -1,5 +1,3 @@
-python akamai_cert_manager_proxy.py --section Global --report-only --schedule --fqdn "YOUR_CERT_FQDN" --debug
-output/schedule_deployment_results.json
-python akamai_cert_notifications.py --input output/schedule_deployment_results.json --section Global --mode postdeploy --dry-run --json-only --debug
-output/notifications_summary.json
-python -c "import json; d=json.load(open('output/notifications_summary.json')); [print('FQDN:',x.get('fqdn'),'| Group:',x.get('access_group'),'| Emails:',x.get('emails')) for x in d]"
+python -c "import json; d=json.load(open('output/www_dspin-uat_p2g_netd2_hsbc_com_hk.json')); json.dump({'certificates':[{'fqdn':d['Common Name'],'enrollment_id':248257,'sans':d.get('SANs',[])}]},open('output/test_notification_input.json','w'),indent=2)"
+python -m json.tool output/test_notification_input.json
+python akamai_cert_notifications.py --input output/test_notification_input.json --section GLOBAL --mode postdeploy --dry-run --json-only --debug
