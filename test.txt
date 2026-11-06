@@ -1,1 +1,4 @@
-python -c 'tasks=[{"short_description":"04. Certificate Deployment (CYBER-WASP)"},{"short_description":"3. Pre Deployment Validation"}]; match=next((task for task in tasks if str(task.get("short_description") or "").strip().startswith(("4.", "04."))),None); print(match)'
+python akamai_cert_notifications.py --input output/schedule_deployment_results.json --section Global --mode postdeploy --dry-run --json-only --debug
+python -m json.tool output/schedule_deployment_results.json
+python akamai_cert_notifications.py --input output/schedule_deployment_results.json --section Global --mode postdeploy --dry-run --json-only --debug
+python -c "import json; d=json.load(open('output/notifications_summary.json')); [print('FQDN:',x.get('fqdn'),'| Group:',x.get('access_group'),'| Emails:',x.get('emails')) for x in d]"
