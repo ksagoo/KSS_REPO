@@ -1,4 +1,5 @@
-response = requests.get(url, timeout=20)
-print(f"[DEBUG] LDAP HTTP status: {response.status_code}")
-print(f"[DEBUG] LDAP response: {response.text[:2000]}")
-data = response.json()
+Get-ADGroup -Filter "Name -like '*WSIT-APAC-HKWS*'" -Properties DistinguishedName | Select-Object Name, DistinguishedName
+Get-ADGroup -Filter "Name -like '*WSIT-APAC-CyberWASP001*'" -Properties DistinguishedName | Select-Object Name, DistinguishedName
+Get-ADGroupMember -Identity "Infodir-WSIT-APAC-HKWS" | Select-Object Name, ObjectClass
+Get-ADGroupMember -Identity "Infodir-WSIT-APAC-HKWS" -Recursive | Select-Object Name, ObjectClass
+python entitlement/query_ad_group_proxy.py --group_name WSIT-APAC-HKWS --show-url
