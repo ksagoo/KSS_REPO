@@ -1,4 +1,5 @@
+python akamai_cert_manager_proxy.py --section Global --report-only --schedule --fqdn "YOUR_CERT_FQDN" --debug
+output/schedule_deployment_results.json
 python akamai_cert_notifications.py --input output/schedule_deployment_results.json --section Global --mode postdeploy --dry-run --json-only --debug
-python -m json.tool output/schedule_deployment_results.json
-python akamai_cert_notifications.py --input output/schedule_deployment_results.json --section Global --mode postdeploy --dry-run --json-only --debug
+output/notifications_summary.json
 python -c "import json; d=json.load(open('output/notifications_summary.json')); [print('FQDN:',x.get('fqdn'),'| Group:',x.get('access_group'),'| Emails:',x.get('emails')) for x in d]"
