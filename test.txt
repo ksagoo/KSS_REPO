@@ -1,3 +1,13 @@
-python -c "import json; d=json.load(open('output/www_dspin-uat_p2g_netd2_hsbc_com_hk.json')); json.dump({'certificates':[{'fqdn':d['Common Name'],'enrollment_id':248257,'sans':d.get('SANs',[])}]},open('output/test_notification_input.json','w'),indent=2)"
-python -m json.tool output/test_notification_input.json
-python akamai_cert_notifications.py --input output/test_notification_input.json --section GLOBAL --mode postdeploy --dry-run --json-only --debug
+lookup = reverse_fqdn_lookup(session, base_url, fqdn)
+
+
+print(f"[DEBUG] FQDN: {fqdn}")
+print(f"[DEBUG] Reverse lookup result: {lookup}")
+
+line 216
+print(f"[DEBUG] Access group: {access_group_name}")
+print(f"[DEBUG] AD members: {ad_members}")
+print(f"[DEBUG] Final email recipients: {emails}")
+
+export PYTHONIOENCODING=utf-8
+python akamai_cert_notifications.py --input output/test_notification_input.json --section GLOBAL --mode postdeploy --json-only
