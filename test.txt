@@ -1,2 +1,45 @@
-print("[DEBUG] LDAP HTTP status:", response.status_code)
-print("[DEBUG] LDAP response:", response.text[:3000])
+def discover_ad_group(group_name, debug=True):
+    """Search LDAP for a group and display its actual DN."""
+    import requests
+
+    url = (
+        f"{DEFAULT_BASE_URL}?"
+        f"serverUrl={DEFAULT_SERVER_URL}"
+        f"&baseDN={DEFAULT_BASE_DN}"
+        f"&attributes=cn,distinguishedName,member"
+        f"&cn=InfoDir-{urllib.parse.quote(group_name)}"
+        f"&limit=100&ad=false&sentFrom=CyberWASP"
+    )
+
+    print(f"[DEBUG] Searching AD group: {group_name}")
+
+    try:
+        with without_proxy():
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+
+        data = response.json()
+        print(json.dumps(data, indent=2))
+
+        return data
+
+    except Exception as e:
+        print(f"[ERROR] AD group discovery failed: {e}")
+        return []
+
+
+parser.add_argument(
+    "--discover-group",
+    action="store_true",
+    help="Discover AD group distinguished name and OU"
+)
+
+
+if args.discover_group:
+    discover_ad_group(args.group_name)
+    exit(0)
+
+python entitlement/query_ad_group_proxy.py --group_name WSIT-APAC-HKWS --discover-group
+
+
+
