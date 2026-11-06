@@ -1,2 +1,2 @@
-python entitlement/query_ad_group_proxy.py --group_name WSIT-APAC-HKWS --show-url
-python entitlement/query_ad_group_proxy.py --group_name WSIT-APAC-CyberWASP001 --show-url
+print("[DEBUG] LDAP HTTP status:", response.status_code)
+print("[DEBUG] LDAP response:", response.text[:3000])
