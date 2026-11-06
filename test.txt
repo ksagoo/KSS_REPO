@@ -1,1 +1,4 @@
-python -c "from entitlement.query_ad_group_proxy import fetch_ad_user_details; import json; print(json.dumps(fetch_ad_user_details('WSIT-APAC-HKWS', dry_run=False, debug=True), indent=2))"
+response = requests.get(url, timeout=20)
+print(f"[DEBUG] LDAP HTTP status: {response.status_code}")
+print(f"[DEBUG] LDAP response: {response.text[:2000]}")
+data = response.json()
