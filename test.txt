@@ -1,53 +1,56 @@
-    sections = list(dict.fromkeys([
-        args.section, "KSS-GLOBAL", "APAC", "AMER", "EMEA"
-    ]))
+replace lines 182–195 in the main()
 
-    for section in sections:
-        print(f"\n[INFO] Trying EdgeGrid section: {section}")
+session, base_url = setup_session(args.section) including has_failures = True
 
-        try:
-            session, base_url = setup_session(
-                args.edgerc_file,
-                section,
-                False,
-            )
+    results = {}
+    has_failures = False
 
-            if session is None or not base_url:
-                print(f"[WARN] Session unavailable for {section}")
-                continue
+    sections = list(dict.fromkeys(
+        [args.section] + ["GLOBAL", "APAC", "AMER", "EMEA"]
+    ))
 
-            result = lookup(
-                session,
-                base_url,
-                args.fqdn,
-                args.network,
-            )
+    for fqdn in args.fqdn:
+        result = None
 
-            if result == 0:
-                print(f"[SUCCESS] Match found in {section}")
-                return 0
+        for section in sections:
+            try:
+                if args.debug:
+                    print(
+                        f"[DEBUG] Trying EdgeGrid section {section} for {fqdn}",
+                        file=sys.stderr
+                    )
 
-            if result == 2 and args.network == "PRODUCTION":
-                print(f"[INFO] Trying STAGING in {section}")
+                session, base_url = setup_session(section)
 
-                result = lookup(
-                    session,
-                    base_url,
-                    args.fqdn,
-                    "STAGING",
+                result = reverse_fqdn_lookup(
+                    session, base_url, fqdn, args.debug
                 )
 
-                if result == 0:
-                    print(f"[SUCCESS] STAGING match in {section}")
-                    return 0
+                if result:
+                    print(
+                        f"[INFO] FQDN {fqdn} resolved in {section}",
+                        file=sys.stderr
+                    )
+                    break
 
-            if result not in (0, 2):
-                print(f"[ERROR] Lookup returned {result} in {section}")
-                return result
+            except Exception as exc:
+                print(
+                    f"[WARN] Lookup failed in {section}: {exc}",
+                    file=sys.stderr
+                )
+                continue
 
-        except Exception as exc:
-            print(f"[WARN] Section {section} failed: {exc}")
-            continue
+        if result:
+            results[fqdn] = {
+                "accessGroupName": result.get("accessGroupName"),
+                "groupId": result.get("groupId")
+            }
+        else:
+            results[fqdn] = "No-Matching-Access-Group"
+            has_failures = True
 
-    print("[ERROR] No matching FQDN found across EdgeGrid sections")
-    return 2
+python entitlement/akamai_fqdn_access_group_lookup.py \
+  --section GLOBAL \
+  --fqdn www.hkg2v11794-us-datafeed.p2g.netd2.hsbc.com.hk \
+  --json \
+  --debug
