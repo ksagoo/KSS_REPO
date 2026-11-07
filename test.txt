@@ -1,23 +1,44 @@
-return lookup(...) at lines 221–226 with:
+    sections = ["KSS-GLOBAL", "APAC", "AMER", "EMEA"]
 
-result = lookup(
-        session,
-        base_url,
-        args.fqdn,
-        args.network,
-    )
+    for section in sections:
+        print(f"\n[INFO] Trying EdgeGrid section: {section}")
 
-    if result == 2 and args.network == "PRODUCTION":
-        print(
-            "\n[INFO] No PRODUCTION hostname match. "
-            "Retrying STAGING..."
-        )
+        try:
+            session, base_url = setup_session(
+                args.edgerc_file,
+                section,
+                False,
+            )
 
-        result = lookup(
-            session,
-            base_url,
-            args.fqdn,
-            "STAGING",
-        )
+            if session is None or not base_url:
+                print(f"[WARN] Session unavailable: {section}")
+                continue
 
-    return result
+            result = lookup(
+                session,
+                base_url,
+                args.fqdn,
+                args.network,
+            )
+
+            if result == 0:
+                print(f"[SUCCESS] Match found using {section}")
+                return 0
+
+            if result == 2:
+                print(f"[INFO] No match in {section}")
+                continue
+
+            print(f"[WARN] Lookup returned {result} in {section}")
+            return result
+
+        except Exception as exc:
+            print(f"[WARN] Lookup failed in {section}: {exc}")
+            continue
+
+    print("[ERROR] No matching FQDN found in any EdgeGrid section")
+    return 2
+
+
+
+python akamai_access_group_lookup.py --fqdn newsimg-tris.hsbc.com.hk
