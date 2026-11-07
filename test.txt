@@ -1,45 +1,23 @@
-def discover_ad_group(group_name, debug=True):
-    """Search LDAP for a group and display its actual DN."""
-    import requests
+return lookup(...) at lines 221–226 with:
 
-    url = (
-        f"{DEFAULT_BASE_URL}?"
-        f"serverUrl={DEFAULT_SERVER_URL}"
-        f"&baseDN={DEFAULT_BASE_DN}"
-        f"&attributes=cn,distinguishedName,member"
-        f"&cn=InfoDir-{urllib.parse.quote(group_name)}"
-        f"&limit=100&ad=false&sentFrom=CyberWASP"
+result = lookup(
+        session,
+        base_url,
+        args.fqdn,
+        args.network,
     )
 
-    print(f"[DEBUG] Searching AD group: {group_name}")
+    if result == 2 and args.network == "PRODUCTION":
+        print(
+            "\n[INFO] No PRODUCTION hostname match. "
+            "Retrying STAGING..."
+        )
 
-    try:
-        with without_proxy():
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
+        result = lookup(
+            session,
+            base_url,
+            args.fqdn,
+            "STAGING",
+        )
 
-        data = response.json()
-        print(json.dumps(data, indent=2))
-
-        return data
-
-    except Exception as e:
-        print(f"[ERROR] AD group discovery failed: {e}")
-        return []
-
-
-parser.add_argument(
-    "--discover-group",
-    action="store_true",
-    help="Discover AD group distinguished name and OU"
-)
-
-
-if args.discover_group:
-    discover_ad_group(args.group_name)
-    exit(0)
-
-python entitlement/query_ad_group_proxy.py --group_name WSIT-APAC-HKWS --discover-group
-
-
-
+    return result
