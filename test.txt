@@ -1,41 +1,25 @@
-eplace the access-group lookup block at approximately lines 188–200, ending just before # Fallbacks when no mapping found, with:
+emails = [
+    m.get("mail")
+    for m in ad_members
+    if isinstance(m, dict) and m.get("mail")
+] or ["cyberwaspwafdevops@noexternalmail.hsbc.com"]
 
 
-# Determine access group + group ID across EdgeGrid regions
-access_group_name = None
-group_id = None
 
-sections = list(dict.fromkeys(
-    [args.section] + ["GLOBAL", "APAC", "AMER", "EMEA"]
-)) if args.section else ["GLOBAL", "APAC", "AMER", "EMEA"]
+default_emails = [
+    "cyberwaspwafdevops@noexternalmail.hsbc.com"
+]
 
-for section in sections:
-    try:
-        lookup_session, lookup_base_url = setup_session(section)
+ad_emails = list(dict.fromkeys(
+    m.get("mail")
+    for m in ad_members
+    if isinstance(m, dict) and m.get("mail")
+))
 
-        lookup = reverse_fqdn_lookup(
-            lookup_session,
-            lookup_base_url,
-            fqdn
-        )
+emails = ad_emails if ad_emails else default_emails
 
-        if isinstance(lookup, dict):
-            access_group_name = (
-                lookup.get("accessGroupName")
-                or lookup.get("access_group_name")
-            )
-            group_id = lookup.get("groupId", "N/A")
+cc_emails = [
+    email for email in default_emails
+    if email.lower() not in {e.lower() for e in emails}
+] if ad_emails else []
 
-            if access_group_name:
-                log_message(
-                    "INFO",
-                    f"FQDN {fqdn} resolved in {section}: {access_group_name}"
-                )
-                break
-
-    except Exception as e:
-        log_message(
-            "WARN",
-            f"Lookup failed in {section} for {fqdn}: {e}"
-        )
-        continue
