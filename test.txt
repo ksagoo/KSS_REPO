@@ -1,56 +1,41 @@
-replace lines 182–195 in the main()
+eplace the access-group lookup block at approximately lines 188–200, ending just before # Fallbacks when no mapping found, with:
 
-session, base_url = setup_session(args.section) including has_failures = True
 
-    results = {}
-    has_failures = False
+# Determine access group + group ID across EdgeGrid regions
+access_group_name = None
+group_id = None
 
-    sections = list(dict.fromkeys(
-        [args.section] + ["GLOBAL", "APAC", "AMER", "EMEA"]
-    ))
+sections = list(dict.fromkeys(
+    [args.section] + ["GLOBAL", "APAC", "AMER", "EMEA"]
+)) if args.section else ["GLOBAL", "APAC", "AMER", "EMEA"]
 
-    for fqdn in args.fqdn:
-        result = None
+for section in sections:
+    try:
+        lookup_session, lookup_base_url = setup_session(section)
 
-        for section in sections:
-            try:
-                if args.debug:
-                    print(
-                        f"[DEBUG] Trying EdgeGrid section {section} for {fqdn}",
-                        file=sys.stderr
-                    )
+        lookup = reverse_fqdn_lookup(
+            lookup_session,
+            lookup_base_url,
+            fqdn
+        )
 
-                session, base_url = setup_session(section)
+        if isinstance(lookup, dict):
+            access_group_name = (
+                lookup.get("accessGroupName")
+                or lookup.get("access_group_name")
+            )
+            group_id = lookup.get("groupId", "N/A")
 
-                result = reverse_fqdn_lookup(
-                    session, base_url, fqdn, args.debug
+            if access_group_name:
+                log_message(
+                    "INFO",
+                    f"FQDN {fqdn} resolved in {section}: {access_group_name}"
                 )
+                break
 
-                if result:
-                    print(
-                        f"[INFO] FQDN {fqdn} resolved in {section}",
-                        file=sys.stderr
-                    )
-                    break
-
-            except Exception as exc:
-                print(
-                    f"[WARN] Lookup failed in {section}: {exc}",
-                    file=sys.stderr
-                )
-                continue
-
-        if result:
-            results[fqdn] = {
-                "accessGroupName": result.get("accessGroupName"),
-                "groupId": result.get("groupId")
-            }
-        else:
-            results[fqdn] = "No-Matching-Access-Group"
-            has_failures = True
-
-python entitlement/akamai_fqdn_access_group_lookup.py \
-  --section GLOBAL \
-  --fqdn www.hkg2v11794-us-datafeed.p2g.netd2.hsbc.com.hk \
-  --json \
-  --debug
+    except Exception as e:
+        log_message(
+            "WARN",
+            f"Lookup failed in {section} for {fqdn}: {e}"
+        )
+        continue
