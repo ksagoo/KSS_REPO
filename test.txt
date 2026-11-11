@@ -1,24 +1,17 @@
-Lines 165–172: Replace the existing url = (...) block with:
+import time
 
-url = DEFAULT_BASE_URL
+for attempt in range(3):
+    response = requests.get(
+        url,
+        params=params,
+        headers={"Accept": "application/json"},
+        timeout=10
+    )
 
-params = {
-    "search": "(cn={0})",
-    "argument": group_name,
-    "attributes": "cn",
-    "limit": 10,
-    "sendFrom": "CyberWASP"
-}
+    if response.status_code != 429:
+        break
 
-Line 175
-response = requests.get(url, timeout=10)
-
-response = requests.get(
-    url,
-    params=params,
-    headers={"Accept": "application/json"},
-    timeout=10
-)
-
-
-python -c "from entitlement.query_ad_group import check_ad_group_exists; check_ad_group_exists('SIT-HSBCNET-PRE-PROD')"
+    if attempt < 2:
+        wait = int(response.headers.get("Retry-After", 10 * (2 ** attempt)))
+        print(f"[WARN] HTTP 429. Retrying after {wait}s...")
+        time.sleep(wait)
