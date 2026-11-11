@@ -1,25 +1,19 @@
-emails = [
-    m.get("mail")
-    for m in ad_members
-    if isinstance(m, dict) and m.get("mail")
-] or ["cyberwaspwafdevops@noexternalmail.hsbc.com"]
+akamai-cert-schedule-status-poll.groovy
+
+After line 487 — Append
+
+def ccList = []
+if (notif.cc_emails instanceof List) {
+    ccList = notif.cc_emails.findAll { it }
+}
+def ccRecipients = ccList.join(',')
+
+Line 502 - Replace
+emailext(subject: subject, body: htmlBody, mimeType: 'text/html', to: recipients)
 
 
+emailext(subject: subject, body: htmlBody, mimeType: 'text/html', to: recipients, cc: ccRecipients)
 
-default_emails = [
-    "cyberwaspwafdevops@noexternalmail.hsbc.com"
-]
-
-ad_emails = list(dict.fromkeys(
-    m.get("mail")
-    for m in ad_members
-    if isinstance(m, dict) and m.get("mail")
-))
-
-emails = ad_emails if ad_emails else default_emails
-
-cc_emails = [
-    email for email in default_emails
-    if email.lower() not in {e.lower() for e in emails}
-] if ad_emails else []
-
+Immediately before emailext — Append (recommended)
+echo "[INFO] TO recipients: ${recipients}"
+echo "[INFO] CC recipients: ${ccRecipients}"
