@@ -1,0 +1,8 @@
+Line 145: Replace:
+response.raise_for_status()
+
+print(f"[DEBUG] HTTP Status: {response.status_code}")
+print(f"[DEBUG] API Response: {response.text[:2000]}")
+response.raise_for_status()
+
+python -c "from entitlement.query_ad_group import check_ad_group_exists; check_ad_group_exists('SIT-HSBCNET-PRE-PROD')"
