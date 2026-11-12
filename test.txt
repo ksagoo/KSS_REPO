@@ -1,15 +1,1 @@
-group_name = "Infodir-" + group_name
-url = DEFAULT_BASE_URL
-
-params = {
-    "serverUrl": DEFAULT_SERVER_URL,
-    "baseDN": DEFAULT_BASE_DN,
-    "search": "(cn={0})",
-    "argument": group_name,
-    "attributes": "cn",
-    "limit": 10,
-    "sendFrom": "CyberWASP"
-}
-
-
-python -c 'from entitlement.query_ad_group import check_ad_group_exists; print(check_ad_group_exists("SIT-HSBCNET-PRE-PROD"))'
+="python entitlement/akamai_fqdn_access_group_lookup.py --section GLOBAL --fqdn """&TRIM(B3)&""" --json"
