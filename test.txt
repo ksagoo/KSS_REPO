@@ -1,0 +1,17 @@
+def emailRecipients = recipients
+
+if (ccRecipients?.trim()) {
+    emailRecipients = "${recipients},${ccRecipients}"
+}
+
+echo "[INFO] Email idx=${idx} fqdn=${fqdn} bucket=${bucket} template=${templateName}"
+echo "[INFO] TO recipients: ${recipients}"
+echo "[INFO] Additional recipients: ${ccRecipients}"
+echo "[INFO] Final email recipients: ${emailRecipients}"
+
+emailext(
+    subject: subject,
+    body: htmlBody,
+    mimeType: 'text/html',
+    to: emailRecipients
+)
