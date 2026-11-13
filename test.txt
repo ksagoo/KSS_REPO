@@ -1,1 +1,19 @@
-="python entitlement/akamai_fqdn_access_group_lookup.py --section GLOBAL --fqdn """&TRIM(B3)&""" --json"
+def htmlBody = readFile(renderedPath)
+def subject = "Certificate Renewal - Post Deployment Notification: ${fqdn} (${params.JIRA_ISSUE})"
+
+def emailRecipients = recipients
+
+if (ccRecipients?.trim()) {
+    emailRecipients = "${recipients},${ccRecipients.split(',').collect { 'cc:' + it.trim() }.join(',')}"
+}
+
+echo "[INFO] Email idx=${idx} fqdn=${fqdn} bucket=${bucket} template=${templateName} to=${recipients}"
+echo "[INFO] TO recipients: ${recipients}"
+echo "[INFO] CC recipients: ${ccRecipients}"
+
+emailext(
+    subject: subject,
+    body: htmlBody,
+    mimeType: 'text/html',
+    to: emailRecipients
+)
