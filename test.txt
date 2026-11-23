@@ -1,7 +1,11 @@
-**Reason for Requested Change**
+**Post-Implementation Verification Plan**
 
-Request to increase the **GIN server token expiry period from 14 days to 31 days**.
+1. Confirm the GIN API is operational following implementation.
+2. Resend a certificate renewal approval email and verify it is received successfully.
+3. Confirm the email contains a valid embedded approval token/link.
+4. Click the **APPROVE** button and verify the request is processed successfully.
+5. Check the application logs for any errors.
 
-ITSOs are required to plan and schedule certificate renewals up to one month in advance. The current 14-day token validity period means approval tokens can expire before the scheduled renewal date, resulting in failed approvals when ITSOs click **APPROVE**.
+**Success Criteria:** The approval email is delivered successfully and the embedded approval token is accepted and processed without errors.
 
-Extending the token validity to 31 days will align with the certificate renewal planning window, ensuring approval links remain valid and preventing unnecessary delays to certificate renewals.
+**Extended Validation:** The new 31-day token validity will be verified separately by testing an approval link after the previous 14-day expiry period has elapsed, confirming that the token remains valid and functional.
