@@ -1,11 +1,14 @@
-**Post-Implementation Verification Plan**
+nslookup www.hsbc.com.tw
+openssl s_client -connect www.hsbc.com.tw:443 \
+  -servername www.hsbc.com.tw </dev/null 2>/dev/null |
+openssl x509 -noout -dates -issuer -fingerprint -sha256
 
-1. Confirm the GIN API is operational following implementation.
-2. Resend a certificate renewal approval email and verify it is received successfully.
-3. Confirm the email contains a valid embedded approval token/link.
-4. Click the **APPROVE** button and verify the request is processed successfully.
-5. Check the application logs for any errors.
+Hi, we've noticed that the certificate expiry date shown in the browser doesn't match the active certificate expiry date in Akamai CPS.
 
-**Success Criteria:** The approval email is delivered successfully and the embedded approval token is accepted and processed without errors.
+Could you please open https://www.hsbc.com.tw in an Incognito/InPrivate browser window and send us a screenshot of the certificate details, including the issuer, issue date and expiry date?
 
-**Extended Validation:** The new 31-day token validity will be verified separately by testing an approval link after the previous 14-day expiry period has elapsed, confirming that the token remains valid and functional.
+If possible, could you also repeat the check using a different network (such as a mobile hotspot) and let us know whether the certificate expiry date changes?
+
+This will help us determine whether the difference is related to network routing or a different certificate being presented.
+
+nslookup www.hsbc.com.tw 8.8.8.8
