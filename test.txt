@@ -1,27 +1,7 @@
-def recipients = emailsList.join(',')
+**Reason for Requested Change**
 
-def ccList = []
-if (notif.cc_emails instanceof List) {
-    ccList = notif.cc_emails.findAll { it }
-}
-def ccRecipients = ccList.join(',')
+Request to increase the **GIN server token expiry period from 14 days to 31 days**.
 
+ITSOs are required to plan and schedule certificate renewals up to one month in advance. The current 14-day token validity period means approval tokens can expire before the scheduled renewal date, resulting in failed approvals when ITSOs click **APPROVE**.
 
-def emailRecipients = recipients
-
-if (ccRecipients?.trim()) {
-    emailRecipients = "${recipients},${ccRecipients}"
-}
-
-echo "[INFO] Email idx=${idx} fqdn=${fqdn} bucket=${bucket} template=${templateName}"
-echo "[INFO] TO recipients: ${recipients}"
-echo "[INFO] Additional recipients: ${ccRecipients}"
-echo "[INFO] Final email recipients: ${emailRecipients}"
-
-emailext(
-    subject: subject,
-    body: htmlBody,
-    mimeType: 'text/html',
-    to: emailRecipients
-)
-
+Extending the token validity to 31 days will align with the certificate renewal planning window, ensuring approval links remain valid and preventing unnecessary delays to certificate renewals.
